@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+@theme {
+  /* Escuros quentes — "oficina ao entardecer" */
+  --color-bg: #0c0b0a;
+  --color-bg-soft: #131210;
+  --color-surface: #17161410;
+  --color-surface-raised: #1c1b17;
+  --color-surface-hi: #252420;
+  --color-line: #2a2824;
+  --color-line-soft: #201f1c;
+  --color-line-strong: #3b3833;
+
+  --color-fg: #f3efe5;
+  --color-fg-soft: #d9d4c5;
+  --color-muted: #95907f;
+  --color-dim: #5f5a50;
+
+  /* Acentos */
+  --color-brand: #ff7a45;          /* tangerina */
+  --color-brand-hi: #ff9669;
+  --color-brand-lo: #d9572a;
+  --color-brand-wash: rgba(255, 122, 69, 0.12);
+
+  --color-lime: #cfff5e;            /* sucesso vibrante */
+  --color-lime-soft: rgba(207, 255, 94, 0.14);
+  --color-sky: #7ec8ff;
+  --color-sky-soft: rgba(126, 200, 255, 0.12);
+  --color-gold: #e8b75a;
+  --color-gold-soft: rgba(232, 183, 90, 0.14);
+  --color-rose: #ff6b6b;
+  --color-rose-soft: rgba(255, 107, 107, 0.12);
+  --color-violet: #b794ff;
+  --color-violet-soft: rgba(183, 148, 255, 0.12);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-serif: var(--font-instrument), Georgia, serif;
+  --font-mono: var(--font-mono), ui-monospace, "JetBrains Mono", Menlo, monospace;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+}
+
+/* Grão/noise sutil + halo quente */
+body {
+  background-image:
+    radial-gradient(1200px 800px at 85% -10%, rgba(255, 122, 69, 0.08), transparent 60%),
+    radial-gradient(800px 600px at -10% 110%, rgba(232, 183, 90, 0.05), transparent 55%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity: 0.55;
+  mix-blend-mode: overlay;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+::selection {
+  background: var(--color-brand);
+  color: #0b0a09;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border: 2px solid var(--color-bg);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-line-strong);
+}
+
+/* Utilidades editoriais */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.hairline {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-line-strong) 20%,
+    var(--color-line-strong) 80%,
+    transparent
+  );
+  height: 1px;
+}
+
+.glass {
+  background: color-mix(in oklab, var(--color-bg) 75%, transparent);
+  backdrop-filter: blur(14px) saturate(120%);
+}
+
+/* Cartão padrão */
+.card {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+}
+
+/* Botão primário “brass” */
+.btn-brand {
+  background: var(--color-brand);
+  color: #120d08;
+  border-radius: 999px;
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: background 0.15s, transform 0.15s;
+}
+.btn-brand:hover {
+  background: var(--color-brand-hi);
+}
+.btn-brand:active {
+  transform: translateY(1px);
+}
+
+/* Sparkline helper — não usada via CSS, só pra ficar registrada */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}

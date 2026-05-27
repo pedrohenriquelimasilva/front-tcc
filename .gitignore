@@ -1,0 +1,28 @@
+node_modules
+dist
+build
+*.log
+
+# Env files (todas as variantes — .env, .env.local, .env.production, etc.)
+.env
+.env.*
+!.env.example
+
+# Next.js
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

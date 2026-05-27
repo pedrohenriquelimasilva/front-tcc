@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npx next *)",
+      "Bash(npx tsc *)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(rm -rf .next)",
+      "Bash(python -m compileall -q app scripts alembic)",
+      "Bash(CORS_ORIGINS=\"http://localhost:3000,http://127.0.0.1:3000\" python -c \"from app.config import settings; print\\('CORS_ORIGINS:', settings.CORS_ORIGINS\\); print\\('API_PREFIX:', settings.API_PREFIX\\)\")",
+      "Bash(python -m compileall -q app)"
+    ]
+  }
+}
