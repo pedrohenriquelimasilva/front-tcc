@@ -8,6 +8,7 @@ import {
   BookOpen,
   CheckCircle2,
   ChevronLeft,
+  Flag,
   Loader2,
   Maximize2,
   Minimize2,
@@ -22,7 +23,7 @@ import {
 
 import { ApiError, api } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
-import type { ChallengeOut, SubmissionOut } from "@/lib/types";
+import type { ChallengeOut, SubmissionOut, SubmissionRunOut } from "@/lib/types";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -68,13 +69,16 @@ export default function SimulationPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const [submission, setSubmission] = useState<SubmissionOut | null>(null);
+  const [runResult, setRunResult] = useState<SubmissionRunOut | null>(null);
   const [consoleOutput, setConsoleOutput] = useState("");
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmGiveUp, setConfirmGiveUp] = useState(false);
 
   const startedAt = useRef<number>(Date.now());
+  const timeoutHandled = useRef(false);
+  const timerStarted = useRef(false);
 
   // Carrega o desafio
   useEffect(() => {
@@ -89,6 +93,7 @@ export default function SimulationPage() {
         setCode(pickStarter(data.starter_code, language));
         setTimeLeft(data.time_limit_minutes * 60);
         startedAt.current = Date.now();
+        timerStarted.current = data.time_limit_minutes > 0;
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 404)
@@ -123,6 +128,17 @@ export default function SimulationPage() {
     return () => clearInterval(t);
   }, [isPaused, timeLeft]);
 
+  // Tempo esgotou: se tem código, registra como desistência (back gera feedback);
+  // se não tem nada, volta pra biblioteca. timerStarted evita disparar no
+  // estado inicial (antes do challenge carregar e setar timeLeft).
+  useEffect(() => {
+    if (!challenge || timeoutHandled.current || !timerStarted.current) return;
+    if (timeLeft > 0) return;
+    timeoutHandled.current = true;
+    handleGiveUp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, challenge]);
+
   const formatTime = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -134,30 +150,34 @@ export default function SimulationPage() {
   const timeColor =
     timeLeft < 60 ? "text-rose" : timeLeft < 300 ? "text-gold" : "text-fg";
 
+  const isCodeMeaningful = useCallback(() => {
+    if (!challenge) return false;
+    const trimmed = code.trim();
+    if (!trimmed) return false;
+    const starters = Object.values(challenge.starter_code).map((s) => s.trim());
+    return !starters.includes(trimmed);
+  }, [challenge, code]);
+
   const handleRun = async () => {
     if (!challenge) return;
     setActiveTab("tests");
     setRunning(true);
     setConsoleOutput("> executando…\n");
     try {
-      // "Rodar" no backend cria uma submissão; mostramos só os test_results e
-      // NÃO redirecionamos (usuário ainda está no editor).
-      const res = await api.post<SubmissionOut>("/submissions", {
+      // Endpoint /run NÃO persiste nada — não vira histórico de feedback.
+      const res = await api.post<SubmissionRunOut>("/submissions/run", {
         challenge_id: challenge.id,
         code,
         language,
-        time_spent_seconds: Math.round((Date.now() - startedAt.current) / 1000),
       });
-      setSubmission(res);
-      const passed = res.test_results.filter((r) => r.passed).length;
-      const total = res.test_results.length;
+      setRunResult(res);
       setConsoleOutput(
-        `> executando ${total} testes…\n\n${res.test_results
+        `> executando ${res.total} testes…\n\n${res.test_results
           .map(
             (r, i) =>
               `[${String(i + 1).padStart(2, "0")}] ${r.passed ? "✓ ok" : "✗ falhou"}\n     in:       ${r.input}\n     esperado: ${r.expected}${r.passed ? "" : `\n     obtido:   ${r.got ?? "undefined"}`}`
           )
-          .join("\n\n")}\n\n→ ${passed}/${total} passaram`
+          .join("\n\n")}\n\n→ ${res.passed}/${res.total} passaram`
       );
     } catch (err) {
       const msg =
@@ -181,6 +201,7 @@ export default function SimulationPage() {
         code,
         language,
         time_spent_seconds: Math.round((Date.now() - startedAt.current) / 1000),
+        gave_up: false,
       });
       router.push(`/results/${res.id}`);
     } catch (err) {
@@ -194,10 +215,40 @@ export default function SimulationPage() {
     }
   };
 
+  const handleGiveUp = async () => {
+    if (!challenge) return;
+    // Sem código escrito → sai sem criar nada no histórico.
+    if (!isCodeMeaningful()) {
+      router.push("/challenges");
+      return;
+    }
+    setSubmitError(null);
+    setSubmitting(true);
+    setIsPaused(true);
+    try {
+      const res = await api.post<SubmissionOut>("/submissions", {
+        challenge_id: challenge.id,
+        code,
+        language,
+        time_spent_seconds: Math.round((Date.now() - startedAt.current) / 1000),
+        gave_up: true,
+      });
+      router.push(`/results/${res.id}`);
+    } catch (err) {
+      setIsPaused(false);
+      setSubmitError(
+        err instanceof ApiError
+          ? err.message
+          : "Não foi possível registrar a desistência."
+      );
+      setSubmitting(false);
+    }
+  };
+
   const handleReset = () => {
     if (!challenge) return;
     setCode(pickStarter(challenge.starter_code, language));
-    setSubmission(null);
+    setRunResult(null);
     setConsoleOutput("");
   };
 
@@ -226,8 +277,8 @@ export default function SimulationPage() {
     );
   }
 
-  const passedCount = submission?.test_results.filter((r) => r.passed).length ?? 0;
-  const totalTests = submission?.test_results.length ?? 0;
+  const passedCount = runResult?.passed ?? 0;
+  const totalTests = runResult?.total ?? 0;
 
   return (
     <div className="flex h-screen flex-col bg-bg">
@@ -295,6 +346,15 @@ export default function SimulationPage() {
             title="Reiniciar"
           >
             <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+
+          <button
+            onClick={() => setConfirmGiveUp(true)}
+            disabled={submitting}
+            className="rounded-full border border-rose/30 bg-rose-soft p-2 text-rose transition hover:bg-rose/20 disabled:opacity-50"
+            title="Desistir"
+          >
+            <Flag className="h-3.5 w-3.5" />
           </button>
 
           <button
@@ -371,7 +431,7 @@ export default function SimulationPage() {
                   >
                     <t.Icon className="h-3.5 w-3.5" />
                     {t.label}
-                    {t.k === "tests" && submission && (
+                    {t.k === "tests" && runResult && (
                       <span
                         className={`ml-1 rounded-full px-1.5 py-0.5 font-mono text-[10px] ${
                           passedCount === totalTests
@@ -448,7 +508,7 @@ export default function SimulationPage() {
 
               {activeTab === "tests" && (
                 <div className="px-6 py-6">
-                  {!submission ? (
+                  {!runResult ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <div className="rounded-full bg-surface-raised p-3">
                         <TestTube2 className="h-5 w-5 text-muted" />
@@ -494,7 +554,7 @@ export default function SimulationPage() {
                       </div>
 
                       <div className="mt-4 space-y-2">
-                        {submission.test_results.map((r, i) => (
+                        {runResult.test_results.map((r, i) => (
                           <div
                             key={i}
                             className={`overflow-hidden rounded-lg border ${
@@ -611,6 +671,58 @@ export default function SimulationPage() {
           </div>
         </div>
       </div>
+
+      {confirmGiveUp && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm"
+          onClick={() => !submitting && setConfirmGiveUp(false)}
+        >
+          <div
+            className="card mx-4 max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-rose-soft p-2">
+                <Flag className="h-4 w-4 text-rose" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display text-lg font-semibold text-fg">
+                  Desistir do desafio?
+                </h3>
+                <p className="mt-1.5 text-[13px] text-muted">
+                  {isCodeMeaningful()
+                    ? "Vamos registrar como reprovado e gerar feedback da IA com o código que você escreveu, para você aprender com a tentativa."
+                    : "Como você ainda não escreveu nada significativo, vamos só te levar de volta para a biblioteca — nada será registrado."}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmGiveUp(false)}
+                disabled={submitting}
+                className="rounded-full border border-line bg-surface-raised px-3.5 py-1.5 text-[12.5px] text-fg-soft transition hover:bg-surface-hi disabled:opacity-50"
+              >
+                continuar tentando
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmGiveUp(false);
+                  handleGiveUp();
+                }}
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 rounded-full border border-rose/30 bg-rose-soft px-3.5 py-1.5 text-[12.5px] font-medium text-rose transition hover:bg-rose/20 disabled:opacity-50"
+              >
+                {submitting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Flag className="h-3 w-3" />
+                )}
+                {isCodeMeaningful() ? "desistir e ver feedback" : "voltar à biblioteca"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

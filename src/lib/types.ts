@@ -151,6 +151,13 @@ export interface SubmissionListItem {
   submitted_at: string;
 }
 
+export interface SubmissionRunOut {
+  test_results: TestResultOut[];
+  passed: number;
+  total: number;
+  lines_of_code: number;
+}
+
 export interface SubmissionOut {
   id: string;
   challenge_id: string;

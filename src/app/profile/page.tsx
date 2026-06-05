@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { api } from "@/lib/api";
-import { useRequireAuth } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { ApiError, api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { formatDate, relativeDate } from "@/lib/format";
 import type {
-  AchievementOut,
   Page,
-  SkillOut,
   SubmissionListItem,
   SubmissionStatus,
+  UserOut,
   UserStatsOut,
 } from "@/lib/types";
 import {
@@ -20,24 +20,14 @@ import {
   Calendar,
   Code2,
   Edit3,
-  Flame,
   Github,
   Globe,
   Linkedin,
   Loader2,
   Mail,
   MapPin,
-  Target,
-  Trophy,
+  X,
 } from "lucide-react";
-
-const ACHIEVEMENT_ICONS: Record<string, React.ElementType> = {
-  flame: Flame,
-  target: Target,
-  trophy: Trophy,
-  code: Code2,
-  check: Target,
-};
 
 function statusTone(status: SubmissionStatus) {
   if (status === "Aprovado")
@@ -50,28 +40,28 @@ function statusTone(status: SubmissionStatus) {
 }
 
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useRequireAuth();
+  const { user, loading: authLoading, refresh } = useAuth();
+  const router = useRouter();
 
   const [stats, setStats] = useState<UserStatsOut | null>(null);
-  const [skills, setSkills] = useState<SkillOut[]>([]);
-  const [achievements, setAchievements] = useState<AchievementOut[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/login");
+  }, [authLoading, user, router]);
 
   useEffect(() => {
     if (authLoading || !user) return;
     (async () => {
       setLoading(true);
       try {
-        const [s, sk, ac, subs] = await Promise.all([
+        const [s, subs] = await Promise.all([
           api.get<UserStatsOut>("/users/me/stats"),
-          api.get<SkillOut[]>("/users/me/skills"),
-          api.get<AchievementOut[]>("/users/me/achievements"),
           api.get<Page<SubmissionListItem>>("/submissions/me", { per_page: 6 }),
         ]);
         setStats(s);
-        setSkills(sk);
-        setAchievements(ac);
         setSubmissions(subs.items);
       } catch {
         // Silencioso — estados vazios já exibem UI adequada
@@ -136,8 +126,14 @@ export default function ProfilePage() {
                 <h1 className="font-display text-4xl font-semibold leading-tight tracking-tight text-fg">
                   {user.name}
                 </h1>
-                <button className="rounded-full border border-line bg-surface-raised p-1.5 text-muted transition hover:text-fg">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-raised px-3 py-1.5 text-[12px] text-fg-soft transition hover:border-line-strong hover:text-fg"
+                  title="Editar perfil"
+                >
                   <Edit3 className="h-3.5 w-3.5" />
+                  editar
                 </button>
               </div>
               {user.bio && (
@@ -287,81 +283,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="card p-6">
-              <p className="eyebrow mb-5">habilidades</p>
-              {skills.length === 0 ? (
-                <p className="text-[13px] text-muted">
-                  Complete desafios e suas habilidades aparecem aqui.
-                </p>
-              ) : (
-                <div className="space-y-3.5">
-                  {skills.map((skill) => {
-                    const tone =
-                      skill.value >= 75
-                        ? "bg-lime"
-                        : skill.value >= 55
-                          ? "bg-brand"
-                          : skill.value >= 40
-                            ? "bg-gold"
-                            : "bg-rose";
-                    return (
-                      <div key={skill.category_slug}>
-                        <div className="mb-1.5 flex items-baseline justify-between text-[13px]">
-                          <span className="text-fg">{skill.category_name}</span>
-                          <span className="font-mono text-[12px] text-muted">
-                            {skill.value}
-                          </span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-bg">
-                          <div
-                            className={`h-full rounded-full ${tone} transition-all`}
-                            style={{ width: `${skill.value}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="card p-6">
-              <p className="eyebrow mb-5">conquistas</p>
-              {achievements.length === 0 ? (
-                <p className="text-[13px] text-muted">
-                  Nenhuma conquista ainda.
-                </p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {achievements.map((a) => {
-                    const Icon = ACHIEVEMENT_ICONS[a.icon] || Trophy;
-                    return (
-                      <div
-                        key={a.slug}
-                        className={`group flex flex-col items-center gap-1.5 rounded-xl border border-line p-3 text-center transition ${
-                          a.unlocked
-                            ? "bg-surface-raised hover:border-line-strong"
-                            : "opacity-40"
-                        }`}
-                        title={a.description || a.label}
-                      >
-                        <Icon
-                          className={`h-4 w-4 ${
-                            a.unlocked ? "text-gold" : "text-muted"
-                          }`}
-                        />
-                        <span className="text-[10.5px] leading-tight text-fg-soft">
-                          {a.label}
-                        </span>
-                        <span className="text-[9px] text-dim">
-                          {a.unlocked ? "desbloqueada" : "bloqueada"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </aside>
 
           <div className="space-y-6">
@@ -462,6 +383,221 @@ export default function ProfilePage() {
         </div>
       </main>
       <Footer />
+
+      {editOpen && (
+        <EditProfileModal
+          user={user}
+          onClose={() => setEditOpen(false)}
+          onSaved={async () => {
+            await refresh();
+            setEditOpen(false);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function EditProfileModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: UserOut;
+  onClose: () => void;
+  onSaved: () => Promise<void> | void;
+}) {
+  const [name, setName] = useState(user.name);
+  const [bio, setBio] = useState(user.bio ?? "");
+  const [location, setLocation] = useState(user.location ?? "");
+  const [languages, setLanguages] = useState(user.preferred_languages.join(", "));
+  const [github, setGithub] = useState(user.social?.github ?? "");
+  const [linkedin, setLinkedin] = useState(user.social?.linkedin ?? "");
+  const [website, setWebsite] = useState(user.social?.website ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setError(null);
+    if (!name.trim()) {
+      setError("O nome não pode ficar vazio.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const social: Record<string, string> = {};
+      if (github.trim()) social.github = github.trim();
+      if (linkedin.trim()) social.linkedin = linkedin.trim();
+      if (website.trim()) social.website = website.trim();
+
+      await api.patch<UserOut>("/users/me", {
+        name: name.trim(),
+        bio: bio.trim() || null,
+        location: location.trim() || null,
+        preferred_languages: languages
+          .split(",")
+          .map((l) => l.trim())
+          .filter(Boolean),
+        social,
+      });
+      await onSaved();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Não foi possível salvar as alterações."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm p-4"
+      onClick={() => !saving && onClose()}
+    >
+      <div
+        className="card w-full max-w-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <div>
+            <p className="eyebrow">editar perfil</p>
+            <h2 className="mt-1 font-display text-lg font-semibold text-fg">
+              Suas informações
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-full border border-line bg-surface-raised p-1.5 text-muted transition hover:text-fg disabled:opacity-50"
+            aria-label="Fechar"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+          <div className="space-y-4">
+            <Field label="Nome">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="input"
+                maxLength={120}
+              />
+            </Field>
+
+            <Field label="Bio">
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                className="input resize-none"
+                maxLength={2000}
+                placeholder="Conte rapidamente sobre você"
+              />
+            </Field>
+
+            <Field label="Localização">
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="input"
+                maxLength={120}
+                placeholder="Cidade, país"
+              />
+            </Field>
+
+            <Field
+              label="Linguagens preferidas"
+              hint="Separe por vírgulas — ex: TypeScript, Python"
+            >
+              <input
+                value={languages}
+                onChange={(e) => setLanguages(e.target.value)}
+                className="input"
+                placeholder="TypeScript, Python"
+              />
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="GitHub">
+                <input
+                  value={github}
+                  onChange={(e) => setGithub(e.target.value)}
+                  className="input"
+                  placeholder="https://github.com/seu-user"
+                />
+              </Field>
+              <Field label="LinkedIn">
+                <input
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
+                  className="input"
+                  placeholder="https://linkedin.com/in/..."
+                />
+              </Field>
+              <Field label="Site">
+                <input
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="input"
+                  placeholder="https://..."
+                />
+              </Field>
+            </div>
+
+            {error && (
+              <p className="rounded-md border border-rose/30 bg-rose-soft px-3 py-2 text-[12.5px] text-rose">
+                {error}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-line bg-bg/40 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-full border border-line bg-surface-raised px-4 py-2 text-[13px] text-fg-soft transition hover:bg-surface-hi disabled:opacity-50"
+          >
+            cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-brand inline-flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {saving && <Loader2 className="h-3 w-3 animate-spin" />}
+            {saving ? "salvando…" : "salvar alterações"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[11.5px] font-medium uppercase tracking-wider text-muted">
+        {label}
+      </span>
+      {children}
+      {hint && <span className="mt-1 block text-[11px] text-dim">{hint}</span>}
+    </label>
   );
 }

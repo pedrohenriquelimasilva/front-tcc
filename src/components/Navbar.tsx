@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, Search, User as UserIcon, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
 
@@ -16,20 +16,8 @@ const links = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pathname = usePathname();
   const { user, loading, logout } = useAuth();
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setUserMenuOpen(false);
-      }
-    };
-    if (userMenuOpen) document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [userMenuOpen]);
 
   return (
     <nav className="glass sticky top-0 z-50 border-b border-line">
@@ -60,9 +48,7 @@ export default function Navbar() {
                   key={l.href}
                   href={l.href}
                   className={`relative rounded-full px-3.5 py-1.5 text-[13.5px] transition ${
-                    active
-                      ? "text-fg"
-                      : "text-muted hover:text-fg-soft"
+                    active ? "text-fg" : "text-muted hover:text-fg-soft"
                   }`}
                 >
                   {l.label}
@@ -76,62 +62,17 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <button
-            className="flex items-center gap-2 rounded-full border border-line bg-surface-raised px-3 py-1.5 text-[12.5px] text-muted transition hover:text-fg-soft"
-            aria-label="Buscar"
-          >
-            <Search className="h-3.5 w-3.5" />
-            <span>Buscar…</span>
-            <kbd className="rounded border border-line bg-bg px-1.5 py-0.5 font-mono text-[10px] text-dim">
-              ⌘K
-            </kbd>
-          </button>
-
           {loading ? (
             <div className="h-9 w-24 animate-pulse rounded-full bg-surface-raised" />
           ) : user ? (
-            <div ref={menuRef} className="relative">
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2.5 rounded-full border border-line bg-surface-raised py-1 pl-1 pr-3 text-[13px] text-fg-soft transition hover:border-line-strong hover:text-fg"
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand/40 to-violet/30 font-display text-[12px] text-fg">
-                  {user.name.charAt(0).toUpperCase()}
-                </span>
-                <span className="max-w-[110px] truncate">
-                  {user.name.split(" ")[0]}
-                </span>
-              </button>
-
-              {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-line bg-bg-soft shadow-xl">
-                  <div className="border-b border-line px-4 py-3">
-                    <p className="truncate text-[13px] text-fg">{user.name}</p>
-                    <p className="truncate text-[11px] text-muted">{user.email}</p>
-                  </div>
-                  <div className="py-1.5">
-                    <Link
-                      href="/profile"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2 text-[13px] text-fg-soft transition hover:bg-surface-hi hover:text-fg"
-                    >
-                      <UserIcon className="h-3.5 w-3.5" />
-                      Perfil
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13px] text-fg-soft transition hover:bg-surface-hi hover:text-rose"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      Sair
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-3.5 py-1.5 text-[13px] text-fg-soft transition hover:border-rose/40 hover:text-rose"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sair
+            </button>
           ) : (
             <Link
               href="/login"

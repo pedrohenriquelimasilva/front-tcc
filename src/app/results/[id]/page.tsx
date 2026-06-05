@@ -235,7 +235,7 @@ export default function ResultsPage() {
       <main className="mx-auto max-w-5xl px-6 pt-10 pb-20">
         <Link
           href="/feedback"
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted transition hover:text-fg"
+          className="no-print inline-flex items-center gap-1.5 text-[13px] text-muted transition hover:text-fg"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           todos os feedbacks
@@ -308,22 +308,47 @@ export default function ResultsPage() {
             <div className="relative mt-8 flex flex-wrap gap-3 border-t border-line pt-6">
               <Link
                 href={`/simulation/${data.challenge_slug}`}
-                className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2 text-[13px] text-fg-soft transition hover:border-line-strong hover:text-fg"
+                className="no-print inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2 text-[13px] text-fg-soft transition hover:border-line-strong hover:text-fg"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 tentar novamente
               </Link>
-              <button className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2 text-[13px] text-fg-soft transition hover:border-line-strong hover:text-fg">
+              <button
+                onClick={() => window.print()}
+                className="no-print inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2 text-[13px] text-fg-soft transition hover:border-line-strong hover:text-fg"
+              >
                 <Download className="h-3.5 w-3.5" />
                 exportar pdf
               </button>
-              <button className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2 text-[13px] text-fg-soft transition hover:border-line-strong hover:text-fg">
+              <button
+                onClick={async () => {
+                  const url = window.location.href;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: `Feedback — ${data.challenge_title}`,
+                        url,
+                      });
+                      return;
+                    } catch {
+                      // usuário cancelou ou navegador recusou — cai pro clipboard
+                    }
+                  }
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    alert("Link copiado para a área de transferência.");
+                  } catch {
+                    alert(url);
+                  }
+                }}
+                className="no-print inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2 text-[13px] text-fg-soft transition hover:border-line-strong hover:text-fg"
+              >
                 <Share2 className="h-3.5 w-3.5" />
                 compartilhar
               </button>
               <Link
                 href="/challenges"
-                className="btn-brand ml-auto inline-flex items-center gap-2"
+                className="no-print btn-brand ml-auto inline-flex items-center gap-2"
               >
                 próximo desafio
                 <ArrowUpRight className="h-3.5 w-3.5" />
@@ -501,7 +526,7 @@ export default function ResultsPage() {
           </section>
         )}
 
-        <section className="mt-12 card relative overflow-hidden p-8">
+        <section className="no-print mt-12 card relative overflow-hidden p-8">
           <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-brand/10 blur-3xl" />
           <div className="relative grid gap-6 md:grid-cols-[1.6fr_1fr] md:items-center">
             <div>
